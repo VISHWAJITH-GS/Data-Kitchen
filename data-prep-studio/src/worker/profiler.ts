@@ -21,16 +21,17 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
     };
   }
 
-  // Duplicate rows
-  const dupQuery = await conn.query(`SELECT COUNT(*) as dupes FROM (SELECT * FROM ${tableName} GROUP BY ALL HAVING COUNT(*) > 1)`);
-  const dupCount = Number(dupQuery.toArray()[0].dupes);
+  // Duplicate rows - calculate excess duplicate rows, not just duplicate groups
+  const dupQuery = await conn.query(`SELECT SUM(cnt - 1) as dupes FROM (SELECT COUNT(*) as cnt FROM ${tableName} GROUP BY ALL HAVING COUNT(*) > 1)`);
+  const dupesResult = dupQuery.toArray()[0].dupes;
+  const dupCount = dupesResult === null ? 0 : Number(dupesResult);
   
   if (dupCount > 0) {
     issues.push({
       id: `issue_${issueIdCounter++}`,
       type: 'duplicate_rows',
       severity: 'warning',
-      description: `Found ${dupCount} duplicate rows.`,
+      description: `Found ${dupCount} redundant duplicate rows.`,
       suggestedFix: 'remove_duplicates'
     });
   }
@@ -93,12 +94,13 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
       const numericCastQuery = await conn.query(`
         SELECT COUNT(*) as valid_nums 
         FROM ${tableName} 
-        WHERE TRY_CAST("${colName}" AS DOUBLE) IS NOT NULL
+        WHERE TRY_CAST("${colName.replace(/"/g, '""')}" AS DOUBLE) IS NOT NULL
       `);
       const validNums = Number(numericCastQuery.toArray()[0].valid_nums);
       
-      // If majority is numeric, but not all (and we exclude whitespace only or empty)
-      if (validNums > 0 && validNums > (nonNulls * 0.5) && validNums < nonNulls) {
+      // If a strong majority (95%) is numeric, the rest are likely anomalies.
+      // We increased the threshold from 50% to 95% to avoid misclassifying ID columns like PIN_CODEs.
+      if (validNums > 0 && validNums > (nonNulls * 0.95) && validNums < nonNulls) {
         const anomalies = nonNulls - validNums;
         totalTypeAnomalies += anomalies;
         issues.push({
@@ -106,24 +108,26 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
           type: 'inconsistent_type',
           column: colName,
           severity: 'warning',
-          description: `Found ${anomalies} non-numeric values in a mostly numeric column '${colName}'.`,
+          description: `Found ${anomalies} non-numeric values in a highly numeric column '${colName}'.`,
         });
       }
     }
   }
 
-  // Calculate Health Score
+  // Calculate Health Score based on defined metrics
+  // Completeness: Percentage of non-null cells
   const completeness = Math.max(0, 100 - (totalNulls / totalCells) * 100);
+  
+  // Uniqueness: Percentage of rows that are not redundant duplicates
   const uniqueness = Math.max(0, 100 - (dupCount / rowCount) * 100);
   
-  // Consistency penalized by whitespace and type anomalies
-  const consistencyPenalty = ((totalWhitespaceAnomalies + totalTypeAnomalies) / totalCells) * 100;
-  const consistency = Math.max(0, 100 - consistencyPenalty);
+  // Consistency: Percentage of text cells without whitespace formatting issues
+  const consistency = Math.max(0, 100 - (totalWhitespaceAnomalies / totalCells) * 100);
   
-  // For V1, structural validity is assumed 100 unless specific critical structural errors exist
-  let validity = 100;
+  // Validity: Percentage of cells without type anomalies (e.g. text in numeric columns)
+  // Penalize critical structural errors heavily.
   const criticalIssuesCount = issues.filter(i => i.severity === 'critical').length;
-  validity = Math.max(0, 100 - (criticalIssuesCount * 10));
+  let validity = Math.max(0, 100 - ((totalTypeAnomalies / totalCells) * 100) - (criticalIssuesCount * 10));
 
   // Weights: Completeness (30%), Uniqueness (20%), Consistency (30%), Validity (20%)
   const overall = Math.round((completeness * 0.3) + (uniqueness * 0.2) + (consistency * 0.3) + (validity * 0.2));

@@ -57,7 +57,7 @@ export function WizardContainer({ schema, profileData }: WizardContainerProps) {
       case 12:
         return <SplitStep />;
       case 13:
-        return <FinalPipelineStep />;
+        return <FinalPipelineStep schema={schema} />;
       default:
         return (
           <StepWrapper 

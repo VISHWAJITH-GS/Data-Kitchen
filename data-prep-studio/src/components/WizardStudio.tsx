@@ -20,10 +20,8 @@ function WizardStudioInner() {
 
   useEffect(() => {
     dbClient.onWorkerCrashed = () => {
-      setStatus('Engine Terminated.');
+      setStatus('Engine Terminated. Please restart.');
       setError(mapEngineError('worker crashed'));
-      setSchema(null);
-      setProfileData(null);
     };
     
     dbClient.init()
@@ -36,7 +34,8 @@ function WizardStudioInner() {
 
   const processFile = async (file: File) => {
     if (file.size > FILE_SIZE_WARNING_THRESHOLD) {
-      alert(`Warning: The file "${file.name}" is larger than 100MB. This might cause memory issues or slow performance.`);
+      setError({ message: `The file "${file.name}" is larger than 100MB. To prevent browser memory crashes, files over 100MB are not allowed in this demo.` });
+      return;
     }
     try {
       setStatus(`Ingesting ${file.name}...`);
@@ -71,8 +70,10 @@ function WizardStudioInner() {
           const newProfile = await dbClient.profile();
           setProfileData(newProfile);
           
-          // Note: we don't update the base schema here because DataGrid pulls from current_view
-          // but we might want to trigger a re-render in DataGrid by passing the step count.
+          setStatus('Updating schema...');
+          const newSchema = await dbClient.getSchema();
+          setSchema(newSchema);
+          
           setStatus('Transformations applied successfully.');
         }
       } catch (err: any) {
@@ -82,7 +83,7 @@ function WizardStudioInner() {
     };
     
     applyPipeline();
-  }, [state.history, schema]);
+  }, [state.history]); // Removed schema from dependencies to prevent infinite loop after setSchema
 
   const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -152,8 +153,22 @@ function WizardStudioInner() {
           </Suspense>
         </div>
         {error && (
-          <div style={{ color: '#ef4444', marginTop: '1rem', padding: '1rem', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fef2f2' }}>
-            <strong>Error:</strong> {error.message}
+          <div style={{ color: '#ef4444', marginTop: '1rem', padding: '1rem', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fef2f2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div><strong>Error:</strong> {error.message}</div>
+            {error.message.includes('worker crashed') && (
+              <button 
+                onClick={() => {
+                  dbClient.restartWorker();
+                  dbClient.init().then(() => {
+                    setStatus('Worker Restarted.');
+                    setError(null);
+                  });
+                }}
+                style={{ padding: '0.5rem 1rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Restart Engine
+              </button>
+            )}
           </div>
         )}
       </div>

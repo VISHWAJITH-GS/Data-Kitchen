@@ -46,7 +46,7 @@ export const DataGrid: React.FC<DataGridProps> = ({ schema, recipeStepCount, onR
   }, [recipeStepCount]); // recreate datasource when recipes change to force refresh
 
   return (
-    <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+    <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
       <AgGridReact
         ref={gridRef}
         columnDefs={columnDefs}

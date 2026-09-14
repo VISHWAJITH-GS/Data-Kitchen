@@ -1,4 +1,4 @@
-export type MessageType = 'INGEST' | 'PROFILE' | 'TRANSFORM' | 'PREVIEW' | 'EXPORT' | 'INIT';
+export type MessageType = 'INIT' | 'INGEST' | 'TRANSFORM' | 'PROFILE' | 'PREVIEW' | 'EXPORT' | 'GET_SCHEMA';
 
 export type ColumnType = 'string' | 'integer' | 'float' | 'boolean' | 'date' | 'unknown';
 export type SemanticHint = 'date' | 'email' | 'none';
@@ -20,6 +20,9 @@ export interface SchemaMetadata {
 
 export type RecipeStepType = 'remove_duplicates' | 'fill_nulls' | 'trim_whitespace' | 'rename_column' 
   | 'impute_mean' | 'impute_median' | 'impute_mode' | 'impute_constant' | 'remove_rows_null'
+  | 'cast_type'
+  | 'scale_feature'
+  | 'log_transform'
   | 'mock_operation';
 
 export interface RecipeStep {

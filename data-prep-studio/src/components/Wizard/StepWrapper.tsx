@@ -52,13 +52,11 @@ export function StepWrapper({ title, description, children, onSkip, onDo, isActi
             )}
           </div>
           <div className="step-actions-right">
-            {!hideSkip && (
-              <button className="btn-skip" onClick={handleSkip}>
-                Skip
-              </button>
-            )}
             <button className="btn-primary" onClick={handleDo}>
-              {hideSkip ? "Next" : "Do"}
+              Do
+            </button>
+            <button className="btn-secondary" onClick={handleSkip}>
+              Next
             </button>
           </div>
         </div>

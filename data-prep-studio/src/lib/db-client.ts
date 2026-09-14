@@ -83,6 +83,10 @@ export class DBClient {
   public exportData(format: 'csv' | 'parquet', expectedRows: number, expectedCols: number): Promise<ExportResult> {
     return this.sendMessage('EXPORT', { format, expectedRows, expectedCols });
   }
+
+  public getSchema(): Promise<SchemaMetadata> {
+    return this.sendMessage('GET_SCHEMA');
+  }
 }
 
 // Export a singleton instance

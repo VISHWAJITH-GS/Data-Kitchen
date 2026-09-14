@@ -64,6 +64,53 @@ async function initDB() {
   conn = await db.connect();
 }
 
+async function buildSchemaFromTable(connection: duckdb.AsyncDuckDBConnection, tableName: string): Promise<SchemaMetadata> {
+  const countRes = await connection.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+  const rowCount = Number(countRes.toArray()[0].count);
+
+  const describeRes = await connection.query(`DESCRIBE ${tableName}`);
+  const describeRows = describeRes.toArray();
+  
+  const columns: ColumnMetadata[] = [];
+  
+  for (let i = 0; i < describeRows.length; i++) {
+    const row = describeRows[i];
+    const colName = row.column_name;
+    const colType = row.column_type;
+    
+    // Using double quotes around column name to handle spaces/special chars
+    const statsQuery = await connection.query(`SELECT COUNT(*) as non_null_count, COUNT(DISTINCT "${colName.replace(/"/g, '""')}") as distinct_count FROM ${tableName}`);
+    const stats = statsQuery.toArray()[0];
+    const nullCount = rowCount - Number(stats.non_null_count);
+    const distinctCount = Number(stats.distinct_count);
+    
+    // Sample 1000 rows instead of 100 for better semantic inference (fixing Phase 3 issue)
+    const sampleQuery = await connection.query(`SELECT "${colName.replace(/"/g, '""')}" as val FROM ${tableName} LIMIT 1000`);
+    const sampleVals = sampleQuery.toArray().map(r => r.val);
+    
+    const mappedType = mapDuckDBType(colType);
+    let hint: SemanticHint = 'none';
+    if (mappedType === 'string') {
+       hint = inferSemanticHint(sampleVals);
+    }
+    
+    columns.push({
+      name: colName,
+      position: i,
+      type: mappedType,
+      nullCount,
+      distinctCount,
+      semanticHint: hint
+    });
+  }
+
+  return {
+    tableName,
+    rowCount,
+    columns
+  };
+}
+
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const { id, type, payload } = e.data;
   
@@ -95,47 +142,22 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
              throw new Error('Unsupported file format. Please use CSV or Parquet.');
            }
 
-           const countRes = await conn.query(`SELECT COUNT(*) as count FROM base_data`);
-           const rowCount = Number(countRes.toArray()[0].count);
-
-           const describeRes = await conn.query(`DESCRIBE base_data`);
-           const describeRows = describeRes.toArray();
-           
-           const columns: ColumnMetadata[] = [];
-           
-           for (let i = 0; i < describeRows.length; i++) {
-             const row = describeRows[i];
-             const colName = row.column_name;
-             const colType = row.column_type;
-             
-             const statsQuery = await conn.query(`SELECT COUNT(*) as non_null_count, COUNT(DISTINCT "${colName}") as distinct_count FROM base_data`);
-             const stats = statsQuery.toArray()[0];
-             const nullCount = rowCount - Number(stats.non_null_count);
-             const distinctCount = Number(stats.distinct_count);
-             
-             const sampleQuery = await conn.query(`SELECT "${colName}" FROM base_data LIMIT 100`);
-             const sampleVals = sampleQuery.toArray().map(r => r[colName]);
-             
-             const mappedType = mapDuckDBType(colType);
-             const hint = mappedType === 'string' ? inferSemanticHint(sampleVals) : 'none';
-
-             columns.push({
-               name: colName,
-               position: i,
-               type: mappedType,
-               nullCount,
-               distinctCount,
-               semanticHint: hint
-             });
-           }
-
-           const schema: SchemaMetadata = {
-             tableName: 'base_data',
-             rowCount,
-             columns
-           };
-
+           const schema = await buildSchemaFromTable(conn, 'base_data');
            resultPayload = schema;
+        }
+        break;
+      }
+      
+      case 'GET_SCHEMA': {
+        if (db && conn) {
+          const hasCurrentViewQuery = await conn.query(`SELECT count(*) as count FROM information_schema.tables WHERE table_name = 'current_view'`);
+          const count = Number(hasCurrentViewQuery.toArray()[0].count);
+          const targetTable = count > 0 ? 'current_view' : 'base_data';
+          
+          const schema = await buildSchemaFromTable(conn, targetTable);
+          resultPayload = schema;
+        } else {
+          throw new Error('Database not initialized');
         }
         break;
       }
@@ -195,16 +217,12 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
           const count = Number(hasCurrentViewQuery.toArray()[0].count);
           const targetTable = count > 0 ? 'current_view' : 'base_data';
 
-          // Integrity Check
+          // Integrity Check (Removed strict check against original schema as transformations may alter dimensions)
           const countRes = await conn.query(`SELECT COUNT(*) as count FROM ${targetTable}`);
           const actualRows = Number(countRes.toArray()[0].count);
           
           const describeRes = await conn.query(`DESCRIBE ${targetTable}`);
           const actualCols = describeRes.toArray().length;
-
-          if (actualRows !== expectedRows || actualCols !== expectedCols) {
-             throw new Error(`Data integrity mismatch: Expected ${expectedRows}x${expectedCols}, but view has ${actualRows}x${actualCols}. Please wait for the recipe to finish applying.`);
-          }
 
           // Memory Safeguard Check (~50 bytes per cell rough estimate)
           const estimatedSize = actualRows * actualCols * 50; 

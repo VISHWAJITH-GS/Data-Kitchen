@@ -1,5 +1,7 @@
 import { RecipeStep } from './types';
 
+const escapeId = (id: string) => `"${id.replace(/"/g, '""')}"`;
+
 export function compileRecipe(steps: RecipeStep[], baseTableName: string): string {
   const activeSteps = steps.filter(s => !s.isDisabled);
   
@@ -29,7 +31,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         } else {
            // DuckDB replace syntax: SELECT * REPLACE (COALESCE(col, 'val') AS col)
            const safeValue = typeof fillValue === 'string' ? `'${fillValue.replace(/'/g, "''")}'` : fillValue;
-           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", ${safeValue}) AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, ${safeValue}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -39,7 +41,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`; // no-op
         } else {
-           stepQuery = `SELECT * REPLACE (TRIM("${targetCol}") AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (TRIM(${escapeId(targetCol)}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -50,7 +52,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol || !newName) {
            stepQuery = `SELECT * FROM ${previousStepName}`; // no-op
         } else {
-           stepQuery = `SELECT * EXCLUDE ("${targetCol}"), "${targetCol}" AS "${newName}" FROM ${previousStepName}`;
+           stepQuery = `SELECT * EXCLUDE (${escapeId(targetCol)}), ${escapeId(targetCol)} AS ${escapeId(newName)} FROM ${previousStepName}`;
         }
         break;
       }
@@ -60,7 +62,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`; // no-op
         } else {
-           stepQuery = `SELECT * FROM ${previousStepName} WHERE "${targetCol}" IS NOT NULL`;
+           stepQuery = `SELECT * FROM ${previousStepName} WHERE ${escapeId(targetCol)} IS NOT NULL`;
         }
         break;
       }
@@ -70,7 +72,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT AVG("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT AVG(${escapeId(targetCol)}) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -80,7 +82,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT median("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT median(${escapeId(targetCol)})) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -90,7 +92,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT mode("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT mode(${escapeId(targetCol)})) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -102,7 +104,48 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
            const safeValue = typeof fillValue === 'string' ? `'${fillValue.replace(/'/g, "''")}'` : fillValue;
-           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", ${safeValue}) AS "${targetCol}") FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, ${safeValue}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'cast_type': {
+        const targetCol = step.targetColumns?.[0];
+        const targetType = step.parameters?.targetType;
+        if (!targetCol || !targetType) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           let duckDbType = 'VARCHAR';
+           if (targetType === 'integer') duckDbType = 'BIGINT';
+           if (targetType === 'float') duckDbType = 'DOUBLE';
+           if (targetType === 'boolean') duckDbType = 'BOOLEAN';
+           if (targetType === 'date') duckDbType = 'DATE';
+           stepQuery = `SELECT * REPLACE (CAST(${escapeId(targetCol)} AS ${duckDbType}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'scale_feature': {
+        const targetCol = step.targetColumns?.[0];
+        const method = step.parameters?.method;
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else if (method === 'standard') {
+           stepQuery = `SELECT * REPLACE ((CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT AVG(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT STDDEV(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+        } else if (method === 'minmax') {
+           stepQuery = `SELECT * REPLACE ((CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT MIN(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT MAX(CAST(${escapeId(targetCol)} AS DOUBLE)) - MIN(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+        } else {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'log_transform': {
+        const targetCol = step.targetColumns?.[0];
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           stepQuery = `SELECT * REPLACE (LN(NULLIF(CAST(${escapeId(targetCol)} AS DOUBLE), 0)) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
