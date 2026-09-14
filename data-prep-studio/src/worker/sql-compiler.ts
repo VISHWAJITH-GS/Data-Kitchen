@@ -82,7 +82,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT median(${escapeId(targetCol)})) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT median(${escapeId(targetCol)}) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -92,7 +92,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT mode(${escapeId(targetCol)})) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (COALESCE(${escapeId(targetCol)}, (SELECT mode(${escapeId(targetCol)}) FROM ${previousStepName})) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -120,7 +120,7 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
            if (targetType === 'float') duckDbType = 'DOUBLE';
            if (targetType === 'boolean') duckDbType = 'BOOLEAN';
            if (targetType === 'date') duckDbType = 'DATE';
-           stepQuery = `SELECT * REPLACE (CAST(${escapeId(targetCol)} AS ${duckDbType}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           stepQuery = `SELECT * REPLACE (TRY_CAST(${escapeId(targetCol)} AS ${duckDbType}) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
         break;
       }
@@ -131,9 +131,11 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else if (method === 'standard') {
-           stepQuery = `SELECT * REPLACE ((CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT AVG(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT STDDEV(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           // Fallback to 0 if stddev is 0
+           stepQuery = `SELECT * REPLACE (COALESCE((TRY_CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT AVG(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT STDDEV(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         } else if (method === 'minmax') {
-           stepQuery = `SELECT * REPLACE ((CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT MIN(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT MAX(CAST(${escapeId(targetCol)} AS DOUBLE)) - MIN(CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           // Fallback to 0 if max = min
+           stepQuery = `SELECT * REPLACE (COALESCE((TRY_CAST(${escapeId(targetCol)} AS DOUBLE) - (SELECT MIN(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName})) / NULLIF((SELECT MAX(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) - MIN(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) FROM ${previousStepName}), 0), 0) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         } else {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         }
@@ -145,14 +147,9 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         if (!targetCol) {
            stepQuery = `SELECT * FROM ${previousStepName}`;
         } else {
-           stepQuery = `SELECT * REPLACE (LN(NULLIF(CAST(${escapeId(targetCol)} AS DOUBLE), 0)) AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
+           // CASE WHEN x > 0 THEN LN(x) ELSE NULL END
+           stepQuery = `SELECT * REPLACE (CASE WHEN TRY_CAST(${escapeId(targetCol)} AS DOUBLE) > 0 THEN LN(TRY_CAST(${escapeId(targetCol)} AS DOUBLE)) ELSE NULL END AS ${escapeId(targetCol)}) FROM ${previousStepName}`;
         }
-        break;
-      }
-
-      case 'mock_operation': {
-        // Just passes data through for UI demo purposes for unsupported DuckDB ops (PCA, SMOTE)
-        stepQuery = `SELECT * FROM ${previousStepName}`;
         break;
       }
 

@@ -12,22 +12,23 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
       const { method, targetColumn, constantValue } = action.config;
       if (!targetColumn) continue;
 
-      let type: RecipeStepType;
+      let type: RecipeStepType | null = null;
       switch (method) {
         case 'mean': type = 'impute_mean'; break;
         case 'median': type = 'impute_median'; break;
         case 'mode': type = 'impute_mode'; break;
         case 'constant': type = 'impute_constant'; break;
         case 'remove_rows': type = 'remove_rows_null'; break;
-        default: type = 'mock_operation'; break;
       }
 
-      steps.push({
-        id: `step_cleaning_${Date.now()}_${targetColumn}`,
-        type,
-        targetColumns: [targetColumn],
-        parameters: type === 'impute_constant' ? { value: constantValue } : undefined
-      });
+      if (type) {
+        steps.push({
+          id: `step_cleaning_${Date.now()}_${targetColumn}`,
+          type,
+          targetColumns: [targetColumn],
+          parameters: type === 'impute_constant' ? { value: constantValue } : undefined
+        });
+      }
     }
 
     // Step 2 is Data Type Conversion
@@ -36,7 +37,7 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
       if (method === 'cast' && targetColumn && targetType) {
         steps.push({
           id: `step_cast_${Date.now()}_${targetColumn}`,
-          type: 'cast_type' as any, // casting to any to avoid type error if cast_type isn't in types.ts yet
+          type: 'cast_type',
           targetColumns: [targetColumn],
           parameters: { targetType }
         });
@@ -49,14 +50,9 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
       if (targetColumn && (method === 'standard' || method === 'minmax')) {
         steps.push({
           id: `step_scale_${Date.now()}_${targetColumn}`,
-          type: 'scale_feature' as any,
+          type: 'scale_feature',
           targetColumns: [targetColumn],
           parameters: { method }
-        });
-      } else {
-        steps.push({
-          id: `step_advanced_${action.stepIndex}_${Date.now()}`,
-          type: 'mock_operation'
         });
       }
     }
@@ -67,24 +63,14 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
       if (targetColumn && method === 'log') {
         steps.push({
           id: `step_transform_${Date.now()}_${targetColumn}`,
-          type: 'log_transform' as any,
+          type: 'log_transform',
           targetColumns: [targetColumn]
-        });
-      } else {
-        steps.push({
-          id: `step_advanced_${action.stepIndex}_${Date.now()}`,
-          type: 'mock_operation'
         });
       }
     }
-
-    // For demo purposes, we will mock the remaining advanced steps
-    else if (action.stepIndex > 2) {
-      steps.push({
-        id: `step_advanced_${action.stepIndex}_${Date.now()}`,
-        type: 'mock_operation'
-      });
-    }
+    
+    // Any unimplemented/demo step > 2 is just ignored instead of pushing a mock_operation.
+    // The UI should prevent doing these or mark them properly.
   }
 
   return steps;

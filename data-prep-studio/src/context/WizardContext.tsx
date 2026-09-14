@@ -55,13 +55,8 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case 'GOTO_STEP':
       return { ...state, currentStepIndex: action.payload };
     case 'SAVE_STEP_CONFIG': {
-      const newHistory = [...state.history];
-      const existingIndex = newHistory.findIndex(h => h.stepIndex === action.payload.stepIndex);
-      if (existingIndex >= 0) {
-        newHistory[existingIndex] = action.payload;
-      } else {
-        newHistory.push(action.payload);
-      }
+      // Allow multiple operations per step category
+      const newHistory = [...state.history, action.payload];
       return { ...state, history: newHistory };
     }
     case 'SET_STATUS':
