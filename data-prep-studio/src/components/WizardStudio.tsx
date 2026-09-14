@@ -35,7 +35,7 @@ function WizardStudioInner() {
 
   const processFile = async (file: File) => {
     if (file.size > FILE_SIZE_WARNING_THRESHOLD) {
-      setError({ message: `The file "${file.name}" is larger than 100MB. To prevent browser memory crashes, files over 100MB are not allowed in this demo.` });
+      setError({ message: `The file "${file.name}" is larger than 100MB. To prevent browser memory crashes, files over 100MB are not allowed.` });
       return;
     }
     dispatch({ type: 'RESET_STATE' });
@@ -140,10 +140,10 @@ function WizardStudioInner() {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>Data Preview</h2>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Status: {status}</div>
+          <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--primary)', textShadow: 'var(--glow-shadow)' }}>Data Preview</h2>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Status: {status}</div>
         </div>
-        <div style={{ flex: 1, background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ flex: 1, background: 'var(--card-bg)', backdropFilter: 'blur(10px)', borderRadius: '12px', border: '1px solid var(--card-border)', overflow: 'hidden' }}>
           <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading Grid...</div>}>
             <DataGrid 
               schema={schema} 
@@ -153,7 +153,7 @@ function WizardStudioInner() {
           </Suspense>
         </div>
         {error && (
-          <div style={{ color: '#ef4444', marginTop: '1rem', padding: '1rem', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fef2f2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ color: '#000', marginTop: '1rem', padding: '1rem', border: '1px solid var(--primary)', borderRadius: '8px', backgroundColor: 'var(--primary)', boxShadow: 'var(--glow-shadow)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div><strong>Error:</strong> {error.message}</div>
             {error.message.includes('worker crashed') && (
               <button 

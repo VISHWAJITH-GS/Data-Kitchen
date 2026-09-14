@@ -13,9 +13,7 @@ export const WIZARD_STEPS = [
   'Feature Selection',
   'Dimensionality Reduction',
   'Handle Imbalanced Data',
-  'Target Variable Processing',
-  'Train/Val/Test Split',
-  'Final Pipeline & Export'
+  'Download Dataset'
 ];
 
 export type ActionConfig = {

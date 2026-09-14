@@ -24,7 +24,7 @@ Powered by DuckDB-WASM, all data transformations happen entirely in your browser
 - **Export**: Export pipeline recipes as JSON, and the fully processed dataset back to CSV.
 
 ### NOT IMPLEMENTED (Coming Soon / Demo UI Only)
-The UI currently displays several advanced ML and algorithmic prep steps to showcase the wizard flow. These are explicitly tagged with `[DEMO ONLY]` in the UI and are not supported by the underlying DuckDB engine currently:
+The UI currently displays several advanced ML and algorithmic prep steps to showcase the wizard flow. These are explicitly tagged with `` in the UI and are not supported by the underlying DuckDB engine currently:
 - One-hot / Label / Target encoding
 - Advanced Imputation (KNN, Iterative)
 - Robust Scaling / Outlier removal models

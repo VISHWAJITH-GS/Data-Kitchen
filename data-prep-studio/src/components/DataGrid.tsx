@@ -19,7 +19,7 @@ export const DataGrid: React.FC<DataGridProps> = ({ schema, recipeStepCount, onR
     return schema.columns.map((col) => ({
       field: col.name,
       headerName: col.name,
-      editable: true, // We allow editing the header, but since we can't easily edit headers out of the box in Community without custom components, we'll map cell edits to column renames for this basic demo if they try to edit the first row, or just use a custom header component.
+      editable: true, // We allow editing the header, but since we can't easily edit headers out of the box in Community without custom components, we'll map cell edits to column renames if they try to edit the first row, or just use a custom header component.
       // Wait, AG grid allows editable *cells*. For header renaming, we need a custom header component.
       headerComponent: CustomHeader,
       headerComponentParams: {

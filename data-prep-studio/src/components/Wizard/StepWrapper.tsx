@@ -15,17 +15,13 @@ interface StepWrapperProps {
 export function StepWrapper({ title, description, children, onSkip, onDo, isActionable = true, hideSkip = false }: StepWrapperProps) {
   const { state, dispatch } = useWizard();
   
-  const handleSkip = () => {
-    if (onSkip) onSkip();
-    dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: true, config: null }});
+  const handleNext = () => {
     dispatch({ type: 'NEXT_STEP' });
   };
   
   const handleDo = () => {
     if (onDo) onDo();
-    // In a real app, the specific step would save its own config
-    // Here we just advance if they click "Do" for generic steps
-    dispatch({ type: 'NEXT_STEP' });
+    // Do not advance step here, just process
   };
 
   const goBack = () => dispatch({ type: 'PREV_STEP' });
@@ -53,9 +49,9 @@ export function StepWrapper({ title, description, children, onSkip, onDo, isActi
           </div>
           <div className="step-actions-right">
             <button className="btn-primary" onClick={handleDo}>
-              Do
+              Process
             </button>
-            <button className="btn-secondary" onClick={handleSkip}>
+            <button className="btn-secondary" onClick={handleNext}>
               Next
             </button>
           </div>

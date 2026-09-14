@@ -12,8 +12,6 @@ import {
   FeatureSelectionStep, 
   DimensionalityReductionStep, 
   ImbalancedDataStep, 
-  TargetVariableStep, 
-  SplitStep, 
   FinalPipelineStep 
 } from './Steps/AdditionalSteps';
 import { StepWrapper } from './StepWrapper';
@@ -53,10 +51,6 @@ export function WizardContainer({ schema, profileData }: WizardContainerProps) {
       case 10:
         return <ImbalancedDataStep />;
       case 11:
-        return <TargetVariableStep schema={schema} />;
-      case 12:
-        return <SplitStep />;
-      case 13:
         return <FinalPipelineStep schema={schema} />;
       default:
         return (

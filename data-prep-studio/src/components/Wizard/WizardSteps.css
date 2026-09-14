@@ -3,6 +3,10 @@
   flex-direction: column;
   height: 100%;
   padding: 2rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -18,7 +22,8 @@
 .step-progress {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--primary);
+  text-shadow: var(--glow-shadow);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 0.5rem;
@@ -27,13 +32,13 @@
 .step-header h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0 0 0.5rem 0;
 }
 
 .step-description {
   font-size: 1rem;
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.5;
   margin: 0;
 }
@@ -61,7 +66,7 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .step-actions-right {
@@ -70,84 +75,44 @@
 }
 
 .btn-primary, .btn-secondary, .btn-skip {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
-}
-
-.btn-secondary {
-  background-color: #f1f5f9;
-  color: #475569;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #e2e8f0;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-skip {
-  background-color: transparent;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-}
-
-.btn-skip:hover {
-  background-color: #f8fafc;
-  color: #334155;
+  /* Handled in index.css globally for buttons */
 }
 
 /* Common form elements for steps */
 .method-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   padding: 1.25rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
 .method-card:hover {
-  border-color: #3b82f6;
-  background: #f0f7ff;
+  border-color: var(--primary);
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: var(--glow-shadow);
 }
 
 .method-card.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border-color: var(--primary);
+  background: rgba(0, 0, 0, 0.1);
+  box-shadow: var(--glow-shadow);
 }
 
 .method-title {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--primary);
   font-size: 1.05rem;
 }
 
 .method-desc {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .method-options {

@@ -8,9 +8,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   return (
     <div className="landing-container">
       <div className="hero-section">
-        <h1 className="hero-title">Data Preparation Studio</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <img src="/logo.svg" alt="Data Kitchen Logo" style={{ width: '80px', height: '80px' }} />
+          <h1 className="hero-title" style={{ margin: 0 }}>DATA KITCHEN</h1>
+        </div>
         <p className="hero-subtitle">
-          Secure, private, and blazing-fast data preparation directly in your browser. 
+          Secure, private, and blazing-fast data preparation directly in your browser.
           Powered by WebAssembly and DuckDB for unmatched local performance.
         </p>
         <button className="btn-primary" onClick={onStart}>
