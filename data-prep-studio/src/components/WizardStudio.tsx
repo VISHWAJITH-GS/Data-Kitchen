@@ -53,6 +53,37 @@ function WizardStudioInner() {
     }
   }
 
+  const { state } = useWizard();
+  
+  // Listen for history changes and apply pipeline
+  useEffect(() => {
+    const applyPipeline = async () => {
+      if (!schema || state.history.length === 0) return;
+      
+      try {
+        const { compilePipelineHistory } = await import('../utils/pipelineEngine');
+        const steps = compilePipelineHistory(state.history);
+        if (steps.length > 0) {
+          setStatus('Applying transformations...');
+          await dbClient.applyRecipe(steps);
+          
+          setStatus('Re-profiling dataset...');
+          const newProfile = await dbClient.profile();
+          setProfileData(newProfile);
+          
+          // Note: we don't update the base schema here because DataGrid pulls from current_view
+          // but we might want to trigger a re-render in DataGrid by passing the step count.
+          setStatus('Transformations applied successfully.');
+        }
+      } catch (err: any) {
+        setError(mapEngineError(err));
+        setStatus('Failed to apply transformations.');
+      }
+    };
+    
+    applyPipeline();
+  }, [state.history, schema]);
+
   const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -115,7 +146,7 @@ function WizardStudioInner() {
           <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading Grid...</div>}>
             <DataGrid 
               schema={schema} 
-              recipeStepCount={0} 
+              recipeStepCount={state.history.length} 
               onRenameColumn={async () => {}} 
             />
           </Suspense>

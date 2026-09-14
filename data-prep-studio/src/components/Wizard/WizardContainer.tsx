@@ -33,17 +33,17 @@ export function WizardContainer({ schema, profileData }: WizardContainerProps) {
       case 0:
         return <UnderstandDatasetStep schema={schema} profileData={profileData} />;
       case 1:
-        return <DataCleaningStep />;
+        return <DataCleaningStep schema={schema} />;
       case 2:
-        return <DataTypeConversionStep />;
+        return <DataTypeConversionStep schema={schema} />;
       case 3:
-        return <EncodingStep />;
+        return <EncodingStep schema={schema} />;
       case 4:
-        return <FeatureScalingStep />;
+        return <FeatureScalingStep schema={schema} />;
       case 5:
-        return <OutlierDetectionStep />;
+        return <OutlierDetectionStep schema={schema} />;
       case 6:
-        return <DataTransformationStep />;
+        return <DataTransformationStep schema={schema} />;
       case 7:
         return <FeatureEngineeringStep />;
       case 8:
@@ -53,7 +53,7 @@ export function WizardContainer({ schema, profileData }: WizardContainerProps) {
       case 10:
         return <ImbalancedDataStep />;
       case 11:
-        return <TargetVariableStep />;
+        return <TargetVariableStep schema={schema} />;
       case 12:
         return <SplitStep />;
       case 13:

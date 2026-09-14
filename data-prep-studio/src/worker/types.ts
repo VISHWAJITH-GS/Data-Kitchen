@@ -16,7 +16,11 @@ export interface SchemaMetadata {
   tableName: string;
   rowCount: number;
   columns: ColumnMetadata[];
-export type RecipeStepType = 'remove_duplicates' | 'fill_nulls' | 'trim_whitespace' | 'rename_column';
+}
+
+export type RecipeStepType = 'remove_duplicates' | 'fill_nulls' | 'trim_whitespace' | 'rename_column' 
+  | 'impute_mean' | 'impute_median' | 'impute_mode' | 'impute_constant' | 'remove_rows_null'
+  | 'mock_operation';
 
 export interface RecipeStep {
   id: string;

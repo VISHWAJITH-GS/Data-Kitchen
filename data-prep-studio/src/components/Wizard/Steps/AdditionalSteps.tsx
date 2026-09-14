@@ -1,17 +1,38 @@
 import React, { useState } from 'react';
 import { StepWrapper } from '../StepWrapper';
 import { useWizard } from '../../../context/WizardContext';
+import { SchemaMetadata } from '../../../worker/types';
 
 // Helper component for creating generic option-based steps
-function GenericOptionStep({ title, description, options, onDo, stepIndex }: { title: string, description: string, options: {id: string, title: string, desc: string}[], onDo: (selected: string) => void, stepIndex: number }) {
+function GenericOptionStep({ title, description, options, onDo, stepIndex, schema, colFilter }: { title: string, description: string, options: {id: string, title: string, desc: string}[], onDo: (selectedMethod: string, selectedColumn: string) => void, stepIndex: number, schema?: SchemaMetadata | null, colFilter?: (col: any) => boolean }) {
   const [selectedMethod, setSelectedMethod] = useState<string>(options[0]?.id || '');
+  const [selectedColumn, setSelectedColumn] = useState<string>('');
   
+  const columns = schema ? (colFilter ? schema.columns.filter(colFilter) : schema.columns) : [];
+
   return (
     <StepWrapper
       title={title}
       description={description}
-      onDo={() => onDo(selectedMethod)}
+      onDo={() => onDo(selectedMethod, selectedColumn)}
     >
+      {schema && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>Select Target Column</label>
+          <select 
+            value={selectedColumn} 
+            onChange={(e) => setSelectedColumn(e.target.value)}
+            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+          >
+            <option value="" disabled>Select a column...</option>
+            {columns.map(c => (
+              <option key={c.name} value={c.name}>{c.name} ({c.type})</option>
+            ))}
+            {columns.length === 0 && <option value="" disabled>No applicable columns found.</option>}
+          </select>
+        </div>
+      )}
+
       <div className="method-options">
         {options.map(m => (
           <div 
@@ -29,11 +50,30 @@ function GenericOptionStep({ title, description, options, onDo, stepIndex }: { t
 }
 
 // 3. Data Type Conversion
-export function DataTypeConversionStep() {
+export function DataTypeConversionStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
-  const handleDo = (selected: string) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: selected } }});
+  const [selectedColumn, setSelectedColumn] = useState<string>('');
+  const handleDo = (selected: string) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: selected, targetColumn: selectedColumn } }});
+  
+  const columns = schema ? schema.columns : [];
+
   return (
     <StepWrapper title="Data Type Conversion" description="Manually correct any misidentified data types (e.g. converting a numeric ID column to a string type)." onDo={() => handleDo('manual')}>
+      {schema && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>Select Target Column</label>
+          <select 
+            value={selectedColumn} 
+            onChange={(e) => setSelectedColumn(e.target.value)}
+            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+          >
+            <option value="" disabled>Select a column...</option>
+            {columns.map(c => (
+              <option key={c.name} value={c.name}>{c.name} ({c.type})</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#475569' }}>
         <p>In a full implementation, this step would present a table allowing you to override the automatically detected types for each column.</p>
         <p>Click "Skip" if types look correct, or "Do" to flag them for review.</p>
@@ -43,47 +83,47 @@ export function DataTypeConversionStep() {
 }
 
 // 4. Encoding Categorical Data
-export function EncodingStep() {
+export function EncodingStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
   const options = [
     { id: 'onehot', title: 'One-Hot Encoding', desc: 'Best for nominal categories with no inherent order (e.g., Red, Blue, Green).' },
     { id: 'label', title: 'Label / Ordinal Encoding', desc: 'Best for ordinal categories with meaningful order (e.g., Low, Medium, High).' },
     { id: 'target', title: 'Target Encoding', desc: 'Replaces categories with the mean target value. Good for high-cardinality nominals.' },
   ];
-  return <GenericOptionStep title="Encoding Categorical Data" description="Machine learning algorithms require numerical input. Select an encoding strategy for your categorical columns." options={options} onDo={(sel) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel } }})} stepIndex={state.currentStepIndex} />;
+  return <GenericOptionStep title="Encoding Categorical Data" description="Machine learning algorithms require numerical input. Select an encoding strategy for your categorical columns." options={options} onDo={(sel, col) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel, targetColumn: col } }})} stepIndex={state.currentStepIndex} schema={schema} colFilter={(c: any) => c.type === 'string'} />;
 }
 
 // 5. Feature Scaling
-export function FeatureScalingStep() {
+export function FeatureScalingStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
   const options = [
     { id: 'standard', title: 'Standardization (Z-score)', desc: 'Centers data around mean 0 with SD 1. Best for many algorithms like Neural Networks and SVMs.' },
     { id: 'minmax', title: 'Min-Max Normalization', desc: 'Scales values to a fixed 0-1 range. Useful when exact bounds are known or distance-based algorithms are used.' },
     { id: 'robust', title: 'Robust Scaling', desc: 'Uses median and IQR. Less sensitive to outliers than standard scaling.' },
   ];
-  return <GenericOptionStep title="Feature Scaling" description="Numerical features often have different scales which can harm model performance. Select a scaling technique." options={options} onDo={(sel) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel } }})} stepIndex={state.currentStepIndex} />;
+  return <GenericOptionStep title="Feature Scaling" description="Numerical features often have different scales which can harm model performance. Select a scaling technique." options={options} onDo={(sel, col) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel, targetColumn: col } }})} stepIndex={state.currentStepIndex} schema={schema} colFilter={(c: any) => c.type === 'integer' || c.type === 'float'} />;
 }
 
 // 6. Outlier Detection
-export function OutlierDetectionStep() {
+export function OutlierDetectionStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
   const options = [
     { id: 'remove', title: 'Remove Outliers', desc: 'Simply drop rows that contain statistical outliers (e.g., using Z-score > 3 or IQR method).' },
     { id: 'cap', title: 'Capping / Winsorization', desc: 'Cap extreme values to a specific percentile threshold instead of removing the row.' },
     { id: 'keep', title: 'Keep Outliers', desc: 'Do nothing if the outliers represent legitimate observations.' },
   ];
-  return <GenericOptionStep title="Outlier Detection & Treatment" description="Choose how to handle data points that deviate significantly from the rest of the observations." options={options} onDo={(sel) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel } }})} stepIndex={state.currentStepIndex} />;
+  return <GenericOptionStep title="Outlier Detection & Treatment" description="Choose how to handle data points that deviate significantly from the rest of the observations." options={options} onDo={(sel, col) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel, targetColumn: col } }})} stepIndex={state.currentStepIndex} schema={schema} colFilter={(c: any) => c.type === 'integer' || c.type === 'float'} />;
 }
 
 // 7. Data Transformation
-export function DataTransformationStep() {
+export function DataTransformationStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
   const options = [
     { id: 'log', title: 'Log Transformation', desc: 'Useful for highly skewed data distributions.' },
     { id: 'yeo-johnson', title: 'Yeo-Johnson / Box-Cox', desc: 'Power transformations that make the distribution more Gaussian-like.' },
     { id: 'quantile', title: 'Quantile Transformation', desc: 'Maps data to a uniform or normal distribution robustly.' },
   ];
-  return <GenericOptionStep title="Data Transformation" description="Apply mathematical transformations to features to make them more suitable for ML assumptions." options={options} onDo={(sel) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel } }})} stepIndex={state.currentStepIndex} />;
+  return <GenericOptionStep title="Data Transformation" description="Apply mathematical transformations to features to make them more suitable for ML assumptions." options={options} onDo={(sel, col) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel, targetColumn: col } }})} stepIndex={state.currentStepIndex} schema={schema} colFilter={(c: any) => c.type === 'integer' || c.type === 'float'} />;
 }
 
 // 8. Feature Engineering
@@ -133,13 +173,13 @@ export function ImbalancedDataStep() {
 }
 
 // 12. Target Variable Processing
-export function TargetVariableStep() {
+export function TargetVariableStep({ schema }: { schema?: SchemaMetadata | null }) {
   const { state, dispatch } = useWizard();
   const options = [
     { id: 'label_encode', title: 'Label Encode Target', desc: 'Convert string class labels to integers (0, 1, 2) for Classification.' },
     { id: 'log_transform', title: 'Log Transform Target', desc: 'Useful for highly skewed continuous targets (like Price/Salary) for Regression.' },
   ];
-  return <GenericOptionStep title="Target Variable Processing" description="Preprocess the column you are actually trying to predict." options={options} onDo={(sel) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel } }})} stepIndex={state.currentStepIndex} />;
+  return <GenericOptionStep title="Target Variable Processing" description="Preprocess the column you are actually trying to predict." options={options} onDo={(sel, col) => dispatch({ type: 'SAVE_STEP_CONFIG', payload: { stepIndex: state.currentStepIndex, skipped: false, config: { method: sel, targetColumn: col } }})} stepIndex={state.currentStepIndex} schema={schema} />;
 }
 
 // 13. Train / Validation / Test Split

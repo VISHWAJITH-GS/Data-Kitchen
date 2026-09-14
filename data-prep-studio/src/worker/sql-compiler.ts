@@ -55,6 +55,64 @@ export function compileRecipe(steps: RecipeStep[], baseTableName: string): strin
         break;
       }
 
+      case 'remove_rows_null': {
+        const targetCol = step.targetColumns?.[0];
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`; // no-op
+        } else {
+           stepQuery = `SELECT * FROM ${previousStepName} WHERE "${targetCol}" IS NOT NULL`;
+        }
+        break;
+      }
+
+      case 'impute_mean': {
+        const targetCol = step.targetColumns?.[0];
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT AVG("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'impute_median': {
+        const targetCol = step.targetColumns?.[0];
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT median("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'impute_mode': {
+        const targetCol = step.targetColumns?.[0];
+        if (!targetCol) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", (SELECT mode("${targetCol}") FROM ${previousStepName})) AS "${targetCol}") FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'impute_constant': {
+        const targetCol = step.targetColumns?.[0];
+        const fillValue = step.parameters?.value;
+        if (!targetCol || fillValue === undefined) {
+           stepQuery = `SELECT * FROM ${previousStepName}`;
+        } else {
+           const safeValue = typeof fillValue === 'string' ? `'${fillValue.replace(/'/g, "''")}'` : fillValue;
+           stepQuery = `SELECT * REPLACE (COALESCE("${targetCol}", ${safeValue}) AS "${targetCol}") FROM ${previousStepName}`;
+        }
+        break;
+      }
+
+      case 'mock_operation': {
+        // Just passes data through for UI demo purposes for unsupported DuckDB ops (PCA, SMOTE)
+        stepQuery = `SELECT * FROM ${previousStepName}`;
+        break;
+      }
+
       default:
         stepQuery = `SELECT * FROM ${previousStepName}`;
         break;
