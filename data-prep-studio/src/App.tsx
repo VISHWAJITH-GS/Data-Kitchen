@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Studio from './Studio';
+import WizardStudio from './components/WizardStudio';
 import { LandingPage } from './components/LandingPage';
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
   return (
     <>
       {route === 'landing' && <LandingPage onStart={() => setRoute('studio')} />}
-      {route === 'studio' && <Studio />}
+      {route === 'studio' && <WizardStudio />}
     </>
   );
 }
