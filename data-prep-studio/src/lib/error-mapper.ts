@@ -39,8 +39,9 @@ export function mapEngineError(rawError: string | Error): MappedError {
   }
 
   // Default Fallback
+  console.error("Engine Error:", rawError);
   return {
-    message: "An unexpected data processing error occurred.",
+    message: errStr,
     action: "Please reload the page or try a different dataset."
   };
 }

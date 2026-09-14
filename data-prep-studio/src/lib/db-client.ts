@@ -80,8 +80,8 @@ export class DBClient {
     return this.sendMessage('PREVIEW', { offset, limit });
   }
 
-  public exportData(format: 'csv' | 'parquet', expectedRows: number, expectedCols: number): Promise<ExportResult> {
-    return this.sendMessage('EXPORT', { format, expectedRows, expectedCols });
+  public exportData(format: 'csv' | 'parquet'): Promise<ExportResult> {
+    return this.sendMessage('EXPORT', { format });
   }
 
   public getSchema(): Promise<SchemaMetadata> {

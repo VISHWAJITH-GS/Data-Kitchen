@@ -229,8 +229,8 @@ export function FinalPipelineStep({ schema }: { schema?: SchemaMetadata | null }
   const handleExportCSV = async () => {
     if (!schema) return;
     try {
-      const csvData = await dbClient.exportData('csv', schema.rowCount, schema.columns.length);
-      const blob = new Blob([csvData], { type: 'text/csv' });
+      const result = await dbClient.exportData('csv');
+      const blob = new Blob([result.buffer], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

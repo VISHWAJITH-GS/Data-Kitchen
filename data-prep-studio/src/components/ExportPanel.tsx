@@ -13,7 +13,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ schema, onError }) => 
   const handleExport = async (format: 'csv' | 'parquet') => {
     setIsExporting(true);
     try {
-      const result = await dbClient.exportData(format, schema.rowCount, schema.columns.length);
+      const result = await dbClient.exportData(format);
       
       // Trigger browser download
       const blob = new Blob([result.buffer], { type: format === 'csv' ? 'text/csv' : 'application/octet-stream' });

@@ -14,6 +14,7 @@ function WizardStudioInner() {
   const [error, setError] = useState<MappedError | null>(null);
   const [schema, setSchema] = useState<SchemaMetadata | null>(null);
   const [profileData, setProfileData] = useState<ProfileResult | null>(null);
+  const { state, dispatch } = useWizard();
   
   const FILE_SIZE_WARNING_THRESHOLD = 100 * 1024 * 1024;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,7 @@ function WizardStudioInner() {
       setError({ message: `The file "${file.name}" is larger than 100MB. To prevent browser memory crashes, files over 100MB are not allowed in this demo.` });
       return;
     }
+    dispatch({ type: 'RESET_STATE' });
     try {
       setStatus(`Ingesting ${file.name}...`);
       const result = await dbClient.ingest(file);
@@ -52,8 +54,6 @@ function WizardStudioInner() {
     }
   }
 
-  const { state } = useWizard();
-  
   // Listen for history changes and apply pipeline
   useEffect(() => {
     const applyPipeline = async () => {

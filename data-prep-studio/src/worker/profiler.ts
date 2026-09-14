@@ -1,12 +1,14 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
 import { ProfileResult, DataIssue, HealthScore } from './types';
 
+import { escapeIdentifier } from '../utils/sql-escape';
+
 export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName: string): Promise<ProfileResult> {
   const issues: DataIssue[] = [];
   let issueIdCounter = 1;
 
   // PASS 1: Aggregate stats
-  const countQuery = await conn.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+  const countQuery = await conn.query(`SELECT COUNT(*) as count FROM ${escapeIdentifier(tableName)}`);
   const rowCount = Number(countQuery.toArray()[0].count);
 
   if (rowCount === 0) {
@@ -22,7 +24,7 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
   }
 
   // Duplicate rows - calculate excess duplicate rows, not just duplicate groups
-  const dupQuery = await conn.query(`SELECT SUM(cnt - 1) as dupes FROM (SELECT COUNT(*) as cnt FROM ${tableName} GROUP BY ALL HAVING COUNT(*) > 1)`);
+  const dupQuery = await conn.query(`SELECT SUM(cnt - 1) as dupes FROM (SELECT COUNT(*) as cnt FROM ${escapeIdentifier(tableName)} GROUP BY ALL HAVING COUNT(*) > 1)`);
   const dupesResult = dupQuery.toArray()[0].dupes;
   const dupCount = dupesResult === null ? 0 : Number(dupesResult);
   
@@ -37,7 +39,7 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
   }
 
   // Column stats
-  const describeRes = await conn.query(`DESCRIBE ${tableName}`);
+  const describeRes = await conn.query(`DESCRIBE ${escapeIdentifier(tableName)}`);
   const columns = describeRes.toArray();
   
   let totalCells = rowCount * columns.length;
@@ -53,7 +55,7 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
 
     // PASS 2: Targeted heuristics
     // Nulls
-    const statsQuery = await conn.query(`SELECT COUNT(*) as non_nulls FROM ${tableName} WHERE "${colName}" IS NOT NULL`);
+    const statsQuery = await conn.query(`SELECT COUNT(*) as non_nulls FROM ${escapeIdentifier(tableName)} WHERE ${escapeIdentifier(colName)} IS NOT NULL`);
     const nonNulls = Number(statsQuery.toArray()[0].non_nulls);
     const nulls = rowCount - nonNulls;
     totalNulls += nulls;
@@ -72,9 +74,9 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
     if (isString && nonNulls > 0) {
       // Whitespace anomalies
       const wsQuery = await conn.query(`
-        SELECT SUM(CASE WHEN "${colName}" != TRIM("${colName}") THEN 1 ELSE 0 END) as ws_count 
-        FROM ${tableName} 
-        WHERE "${colName}" IS NOT NULL
+        SELECT SUM(CASE WHEN ${escapeIdentifier(colName)} != TRIM(${escapeIdentifier(colName)}) THEN 1 ELSE 0 END) as ws_count 
+        FROM ${escapeIdentifier(tableName)} 
+        WHERE ${escapeIdentifier(colName)} IS NOT NULL
       `);
       const wsCount = Number(wsQuery.toArray()[0].ws_count);
       totalWhitespaceAnomalies += wsCount;
@@ -93,8 +95,8 @@ export async function runProfiling(conn: duckdb.AsyncDuckDBConnection, tableName
       // Inconsistent types (e.g., numbers stored as strings but with some text mixed in)
       const numericCastQuery = await conn.query(`
         SELECT COUNT(*) as valid_nums 
-        FROM ${tableName} 
-        WHERE TRY_CAST("${colName.replace(/"/g, '""')}" AS DOUBLE) IS NOT NULL
+        FROM ${escapeIdentifier(tableName)} 
+        WHERE TRY_CAST(${escapeIdentifier(colName)} AS DOUBLE) IS NOT NULL
       `);
       const validNums = Number(numericCastQuery.toArray()[0].valid_nums);
       

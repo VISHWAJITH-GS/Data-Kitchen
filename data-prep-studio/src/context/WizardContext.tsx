@@ -36,8 +36,8 @@ type WizardAction =
   | { type: 'PREV_STEP' }
   | { type: 'GOTO_STEP'; payload: number }
   | { type: 'SAVE_STEP_CONFIG'; payload: ActionConfig }
-  | { type: 'SET_STATUS'; payload: WizardState['datasetStatus'] }
-  | { type: 'SET_ERROR'; payload: string | null };
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'RESET_STATE' };
 
 const initialState: WizardState = {
   currentStepIndex: 0,
@@ -63,6 +63,8 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, datasetStatus: action.payload };
     case 'SET_ERROR':
       return { ...state, errorMessage: action.payload };
+    case 'RESET_STATE':
+      return { ...initialState };
     default:
       return state;
   }

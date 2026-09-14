@@ -3,9 +3,10 @@ import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
-import { WorkerRequest, WorkerResponse, ColumnType, SemanticHint, ColumnMetadata, SchemaMetadata, RecipeStep } from './types';
+import { ColumnType, ColumnMetadata, RecipeStep, SchemaMetadata, SemanticHint, WorkerRequest, WorkerResponse } from './types';
 import { compileRecipe } from './sql-compiler';
 import { runProfiling } from './profiler';
+import { escapeIdentifier, escapeSqlString } from '../utils/sql-escape';
 
 function mapDuckDBType(duckType: string): ColumnType {
   const upperType = duckType.toUpperCase();
@@ -79,13 +80,13 @@ async function buildSchemaFromTable(connection: duckdb.AsyncDuckDBConnection, ta
     const colType = row.column_type;
     
     // Using double quotes around column name to handle spaces/special chars
-    const statsQuery = await connection.query(`SELECT COUNT(*) as non_null_count, COUNT(DISTINCT "${colName.replace(/"/g, '""')}") as distinct_count FROM ${tableName}`);
+    const statsQuery = await connection.query(`SELECT COUNT(${escapeIdentifier(colName)}) as non_null_count, COUNT(DISTINCT ${escapeIdentifier(colName)}) as distinct_count FROM ${escapeIdentifier(tableName)}`);
     const stats = statsQuery.toArray()[0];
     const nullCount = rowCount - Number(stats.non_null_count);
     const distinctCount = Number(stats.distinct_count);
     
     // Sample 1000 rows instead of 100 for better semantic inference (fixing Phase 3 issue)
-    const sampleQuery = await connection.query(`SELECT "${colName.replace(/"/g, '""')}" as val FROM ${tableName} LIMIT 1000`);
+    const sampleQuery = await connection.query(`SELECT ${escapeIdentifier(colName)} as val FROM ${escapeIdentifier(tableName)} LIMIT 1000`);
     const sampleVals = sampleQuery.toArray().map(r => r.val);
     
     const mappedType = mapDuckDBType(colType);
@@ -133,11 +134,12 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
            
            const ext = file.name.split('.').pop()?.toLowerCase();
            await conn.query(`DROP TABLE IF EXISTS base_data`);
+           await conn.query(`DROP VIEW IF EXISTS current_view`);
 
            if (ext === 'csv') {
-             await conn.query(`CREATE TABLE base_data AS SELECT * FROM read_csv_auto('${file.name}')`);
+             await conn.query(`CREATE TABLE base_data AS SELECT * FROM read_csv_auto(${escapeSqlString(file.name)})`);
            } else if (ext === 'parquet') {
-             await conn.query(`CREATE TABLE base_data AS SELECT * FROM read_parquet('${file.name}')`);
+             await conn.query(`CREATE TABLE base_data AS SELECT * FROM read_parquet(${escapeSqlString(file.name)})`);
            } else {
              throw new Error('Unsupported file format. Please use CSV or Parquet.');
            }
@@ -211,7 +213,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         break;
       }
       case 'EXPORT': {
-        const { format, expectedRows, expectedCols } = payload;
+        const { format } = payload;
         if (db && conn) {
           const hasCurrentViewQuery = await conn.query(`SELECT count(*) as count FROM information_schema.tables WHERE table_name = 'current_view'`);
           const count = Number(hasCurrentViewQuery.toArray()[0].count);

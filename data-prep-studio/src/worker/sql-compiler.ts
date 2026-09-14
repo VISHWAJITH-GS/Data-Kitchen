@@ -1,6 +1,5 @@
 import { RecipeStep } from './types';
-
-const escapeId = (id: string) => `"${id.replace(/"/g, '""')}"`;
+import { escapeIdentifier as escapeId } from '../utils/sql-escape';
 
 export function compileRecipe(steps: RecipeStep[], baseTableName: string): string {
   const activeSteps = steps.filter(s => !s.isDisabled);

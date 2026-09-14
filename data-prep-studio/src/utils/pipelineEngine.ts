@@ -19,6 +19,7 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
         case 'mode': type = 'impute_mode'; break;
         case 'constant': type = 'impute_constant'; break;
         case 'remove_rows': type = 'remove_rows_null'; break;
+        default: throw new Error(`This transformation (${method}) is not currently supported.`);
       }
 
       if (type) {
@@ -41,6 +42,8 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
           targetColumns: [targetColumn],
           parameters: { targetType }
         });
+      } else {
+        throw new Error(`This transformation (${method}) is not currently supported.`);
       }
     }
 
@@ -54,6 +57,8 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
           targetColumns: [targetColumn],
           parameters: { method }
         });
+      } else {
+        throw new Error(`This transformation (${method}) is not currently supported.`);
       }
     }
 
@@ -66,11 +71,15 @@ export function compilePipelineHistory(history: ActionConfig[]): RecipeStep[] {
           type: 'log_transform',
           targetColumns: [targetColumn]
         });
+      } else {
+        throw new Error(`This transformation (${method}) is not currently supported.`);
       }
     }
     
-    // Any unimplemented/demo step > 2 is just ignored instead of pushing a mock_operation.
-    // The UI should prevent doing these or mark them properly.
+    // Any unimplemented/demo step > 2 is explicitly rejected
+    else if (action.stepIndex === 3 || action.stepIndex === 5 || action.stepIndex > 6) {
+      throw new Error("This transformation is not currently supported.");
+    }
   }
 
   return steps;
